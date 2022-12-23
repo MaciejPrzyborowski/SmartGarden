@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Strona konfiguracyjna</title>
+	<link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body>
+    <section id="greenhouse" class="config-section">
+        <fieldset>
+            <legend>Konfiguracja szklarni</legend>
+            <div class="greenhouse-form-element">
+                <input type="checkbox" class="form-checkbox" data-action="greenhouse-checkbox-toggle">
+                <label for="">Docelowa tempatatura w szklarni: </label>
+                <input type="range" min="30" max="50" class="form-input" name="greenhouse_target_temperature" data-action="greenhouse-input">
+                <span data-action="display-value" data-unit="degree"></span>
+            </div>
+            <div class="greenhouse-form-element">
+                <input type="checkbox" class="form-checkbox" data-action="greenhouse-checkbox-toggle">
+                <label for="">Włącz regulator gdy temperatura w szklarni spadnie poniżej: </label>
+                <input type="range" min="20" max="50" class="form-input" name="greenhouse_temperature_below" data-action="greenhouse-input">
+                <span data-action="display-value" data-unit="degree"></span>
+            </div>
+            <div class="greenhouse-form-element">
+                <input type="checkbox" class="form-checkbox" data-action="greenhouse-checkbox-toggle">
+                <label for="">Wyłącz regulator o godzinie:</label>
+                <input type="time"class="form-input" name="greenhouse_time_off" data-action="greenhouse-input">
+            </div>
+            <div class="send-data-btn">
+                <button class="send-btn" data-action="reset-greenhouse-data">Reset</button>
+            </div>
+            <div class="send-data-btn">
+                <button class="send-btn" data-action="get-greenhouse-data">Zapisz</button>
+            </div>
+        </fieldset>
+    </section>
+
+    <section id="led" class="config-section">
+        <fieldset>
+            <legend>Konfiguracja lamp</legend>
+            <div class="led-1-form-element">
+                <input type="checkbox" class="form-checkbox" data-action="led-checkbox-toggle">
+                <label for="">Włącz lampę 1 o godzinie:</label>
+                <input type="time"class="form-input" name="led_1" data-action="led-input">
+            </div>
+            <div class="led-1-form-element">
+                <input type="checkbox" class="form-checkbox" data-action="led-checkbox-toggle">
+                <label for="">Wyłącz lampę 1 o godzinie:</label>
+                <input type="time"class="form-input" name="led_1_time_off" data-action="led-input">
+            </div>
+            <div class="led-2-form-element">
+                <input type="checkbox" name="led_2_dusk" class="form-checkbox" data-action="led-2-checkbox">
+                <label for="">Włącz lampę 2 o zmroku</label>
+            </div>
+            <div class="led-2-form-element">
+                <input type="checkbox" name="led_2_motion" class="form-checkbox" data-action="led-2-checkbox">
+                <label for="">Włącz lampę 2 przy wykryciu ruchu</label>
+            </div>
+            <div class="send-data-btn">
+                <button class="send-btn" data-action="reset-led-data">Reset</button>
+            </div>
+            <div class="send-data-btn">
+                <button class="send-btn" data-action="get-led-data">Zapisz</button>
+            </div>
+        </fieldset>
+    </section>
+
+    <section id="water-pump" class="config-section">
+        <fieldset>
+            <legend>Konfiguracja pompy wody</legend>
+            <div class="water-pump-form-element">
+                <input type="checkbox" class="form-checkbox" data-action="water-pump-checkbox-toggle">
+                <label>Włącz gdy temperatura powietrza jest większa od:</label>
+                <input type="range" min="20" max="40" class="form-input" name="water_pump_temperature_above" data-action="water-pump-input">
+                <span data-action="display-value" data-unit="degree"></span>
+            </div>
+            <div class="water-pump-form-element">        
+                <input type="checkbox" class="form-checkbox" data-action="water-pump-checkbox-toggle">
+                <label>Włącz gdy temperatura powietrza jest mniejsza od:</label>
+                <input type="range" min="20" max="40" class="form-input" name="water_pump_temperature_below" data-action="water-pump-input">
+                <span data-action="display-value" data-unit="degree"></span>
+            </div>
+            <div class="water-pump-form-element">
+                <input type="checkbox" class="form-checkbox" data-action="water-pump-checkbox-toggle">
+                <label>Włącz gdy wilgotność powietrza jest mniejsza od:</label>
+                <input type="range" min="30" max="50" class="form-input" name="water_pump_humidity_below" data-action="water-pump-input">
+                <span data-action="display-value" data-unit="percent"></span>
+            </div>
+            <div class="water-pump-form-element">
+                <input type="checkbox" class="form-checkbox" data-action="water-pump-checkbox-toggle">
+                <label>Wyłącz gdy wilgotność powietrza jest większa od:</label>
+                <input type="range" min="51" max="70" class="form-input" name="water_pump_humidity_above" data-action="water-pump-input">
+                <span data-action="display-value" data-unit="percent"></span>
+            </div>
+            <div class="send-data-btn">
+                <button class="send-btn" data-action="reset-water-pump-data">Reset</button>
+            </div>
+            <div class="send-data-btn">
+                <button class="send-btn" data-action="get-water-pump-data">Zapisz</button>
+            </div>
+        </fieldset>
+    </section>
+    
+    <section id="info-data" class="config-section">
+        <fieldset>
+            <legend>Informacje:</legend>
+            <table>
+                <tr>
+                    <td>Aktualna godzina:</td>
+                    <td id="current-time">___</td>
+                </tr>
+                <tr>
+                    <td>Temperatura w szklarni:</td>
+                    <td id="current-greenhouse-temp">___</td>
+                </tr>
+                <tr>
+                    <td>Ustawiona temperatura w szklarni:</td>
+                    <td id="target-greenhouse-temp">___</td>
+                </tr>
+                <tr>
+                    <td>Temperatura powietrza:</td>
+                    <td id="outside-temp">___</td>
+                </tr>
+                <tr>
+                    <td>Wilgotność powietrza:</td>
+                    <td id="humidity">___</td>
+                </tr>
+                <tr>
+                    <td>Lampa 1:</td>
+                    <td id="lamp-1-state">___</td>
+                </tr>
+                <tr>
+                    <td>Lampa 1:</td>
+                    <td id="lamp-2-state">___</td>
+                </tr>
+                <tr>
+                    <td>Stan pompy wody:</td>
+                    <td id="water-pump-state">___</td>
+                </tr>
+            </table>
+        </fieldset>
+    </section> 
+
+    <script src="script.js"></script>
+</body>
+</html>

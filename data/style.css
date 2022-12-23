@@ -1,0 +1,76 @@
+body{
+	margin: 0;
+	padding: 30px 10%;
+	font-size: 20px;
+	background-color: #101010;
+	color: #D1D1D1;
+}
+fieldset{
+	border-radius: 10px;
+}
+fieldset legend{
+	font-size: 30px;
+}
+#greenhouse fieldset{
+	border-color: lightgreen;
+}
+#greenhouse button[data-action="get-greenhouse-data"]{
+	border: 2px solid lightgreen;
+}
+#greenhouse button[data-action="reset-greenhouse-data"]{
+	border: 2px solid darkgreen;
+	background-color: green;
+}
+#led fieldset{
+	border-color: lightcoral;
+}
+#led button[data-action="get-led-data"]{
+	border: 2px solid lightcoral;
+}
+#led button[data-action="reset-led-data"]{
+	border: 2px solid darkred;
+	background-color: red;
+}
+#water-pump fieldset{
+	border-color: lightblue;
+}
+#water-pump button[data-action="get-water-pump-data"]{
+	border: 2px solid lightblue;
+}
+#water-pump button[data-action="reset-water-pump-data"]{
+	border: 2px solid darkblue;
+	background-color: blue;
+}
+.config-section{
+	padding: 10px;
+	margin-top: 5px;
+}
+.form-checkbox{
+	width: 20px;
+	height: 20px;
+	cursor: pointer;
+}
+.form-input{
+	margin-left: 10px;
+}
+.form-input input{
+	font-size: inherit;
+}
+.send-data-btn{
+	width: auto;
+	float: right;
+}
+.send-data-btn button {
+	border-radius: 10px;
+	padding: 5px 10px;
+	color: #D1D1D1;
+	margin-left: 10px;
+	background-color: transparent;
+}
+button:hover {
+	cursor: pointer;
+	background-color: #323232;
+}
+.send-data-btn button {
+	font-size: inherit;
+}
