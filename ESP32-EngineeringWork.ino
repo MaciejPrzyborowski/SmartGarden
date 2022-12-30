@@ -67,14 +67,24 @@ int wp_humidity_below = 0;
 
 const int freq = 2000;
 const int ledChannel = 0;
-const int resolution = 8;
+const int resolution = 10;
+
+int ilosc = 0;
+unsigned long previousMillis;
+unsigned long previousMillisWeb;
+unsigned long currentMillis;
+const unsigned long period = 100;
+const unsigned long periodWeb = 1000;
 
 void setup()
 {
+  ilosc = 0;
   Serial.begin(115200);
   ledcSetup(ledChannel, freq, resolution);
   ledcAttachPin(12, ledChannel);
-  ledcWrite(ledChannel, 255);
+  ledcWrite(ledChannel, 0);
+  digitalWrite(LED1_PORT, HIGH);
+  digitalWrite(LED2_PORT, HIGH);
   Serial.println("--- INIT TEST ---");
   initFS();
   initWiFi();
@@ -82,27 +92,82 @@ void setup()
   initWebServerSocket();
   initTime();
   initSensors();
+  previousMillis = millis();
 }
 
 void loop()
 {
-  delay(100);
-  readSensorsValues();
-  //operateLamps();
-  //ws.cleanupClients();
-  //webSocketNotify(JSONInformationValues());
-  Serial.println(BMP280_Temperature);
+  currentMillis = millis();
+  if(currentMillis - previousMillis >= period)
+  {
+    readSensorsValues();
+    float PWM_Duty = 1023.0 * PIDTemperatureControl(27.3, BMP280_Temperature);
+    if(PWM_Duty < 0.0)
+    {
+      PWM_Duty = 0.0;
+    }
+    else if(PWM_Duty > 1023.0)
+    {
+      PWM_Duty = 1023.0;
+    }
+    int iPWM_Duty = round(PWM_Duty);
+    Serial.print(iPWM_Duty);
+    Serial.print(";");
+    Serial.println(BMP280_Temperature);
+    ledcWrite(ledChannel, iPWM_Duty);
+    previousMillis = millis();
+  }
+  if(currentMillis - previousMillisWeb >= periodWeb)
+  {
+    webSocketNotify(JSONInformationValues());
+    previousMillisWeb = millis();
+  }
+  //  operateLamps();
+  //  ws.cleanupClients();
+  //
+  //  if(HCSR501_Motion)
+  //  {
+  //      Serial.println("[HC] Wykryto ruch");
+  //  }
+  //  if(++ilosc == 50)
+  //  {
+  //    ilosc = 0;
+  //    if(digitalRead(WATERPUMP_PORT) == HIGH)
+  //    {
+  //      digitalWrite(WATERPUMP_PORT, LOW);
+  //      Serial.println("[POMPA] NISKI");
+  //    }
+  //    else
+  //    {
+  //      digitalWrite(WATERPUMP_PORT, HIGH);
+  //      Serial.println("[POMPA] WYSOKI");
+  //    }
+  //    if(digitalRead(LED1_PORT) == HIGH)
+  //    {
+  //      digitalWrite(LED1_PORT, LOW);
+  //      digitalWrite(LED2_PORT, HIGH);
+  //      Serial.println("[LED1] NISKI");
+  //      Serial.println("[LED2] WYSOKI");
+  //    }
+  //    else
+  //    {
+  //      digitalWrite(LED1_PORT, HIGH);
+  //      digitalWrite(LED2_PORT, LOW);
+  //      Serial.println("[LED1] WYSOKI");
+  //      Serial.println("[LED2] NISKI");
+  //    }
+  //  }
 }
 
 void initFS()
 {
-  if(SPIFFS.begin())
+  if (SPIFFS.begin())
   {
-   Serial.println("SPIFFS: OK");
+    Serial.println("SPIFFS: OK");
   }
   else
   {
-   Serial.println("SPIFFS: FAILED");
+    Serial.println("SPIFFS: FAILED");
   }
 }
 
@@ -110,7 +175,7 @@ void initWiFi()
 {
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
-  while(WiFi.status() != WL_CONNECTED)
+  while (WiFi.status() != WL_CONNECTED)
   {
     delay(100);
   }
@@ -122,7 +187,7 @@ void initWebServerSocket()
 {
   ws.onEvent(webSocketOnEvent);
   server.addHandler(&ws);
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest * request)
   {
     request->send(SPIFFS, "/index.html", "text/html");
   });
@@ -143,7 +208,7 @@ void initTime()
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
     delay(100);
   }
-  while(!getLocalTime(&timeinfo));
+  while (!getLocalTime(&timeinfo));
   Serial.println(&timeinfo, "Data: %A, %B %d %Y %H:%M:%S");
 }
 
@@ -188,7 +253,7 @@ void initSensors()
   BMP280_Status = hBMP280.begin(0x77);
   BH1750_Status = hBH1750.begin();
   pinMode(HCSR501_PORT, INPUT);
-  if(BME280_Status)
+  if (BME280_Status)
   {
     Serial.println("BME280: OK");
   }
@@ -196,14 +261,14 @@ void initSensors()
   {
     Serial.println("BME280: FAILED");
   }
-  if(BMP280_Status)
+  if (BMP280_Status)
   {
     Serial.println("BMP280: OK");
   }
   else {
     Serial.println("BMP280: FAILED");
   }
-  if(BH1750_Status)
+  if (BH1750_Status)
   {
     Serial.println("BH1750: OK");
   }
@@ -217,18 +282,9 @@ void initSensors()
 
 void webSocketOnEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len)
 {
-  switch (type)
+  if(type == WS_EVT_DATA)
   {
-    case WS_EVT_CONNECT:
-      break;
-    case WS_EVT_DISCONNECT:
-      break;
-    case WS_EVT_DATA:
-      webSocketOnMessage(arg, data, len);
-      break;
-    case WS_EVT_PONG:
-    case WS_EVT_ERROR:
-      break;
+    webSocketOnMessage(arg, data, len);
   }
 }
 
@@ -238,7 +294,7 @@ void webSocketOnMessage(void *arg, uint8_t *data, size_t len)
   if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT)
   {
     data[len] = 0;
-    if(strcmp((char*)data, "getValues") == 0)
+    if (strcmp((char*)data, "getValues") == 0)
     {
       webSocketNotify(JSONGreenHouseValues());
       webSocketNotify(JSONLampsValues());
@@ -249,16 +305,16 @@ void webSocketOnMessage(void *arg, uint8_t *data, size_t len)
     {
       StaticJsonDocument<400> jsonData;
       DeserializationError error = deserializeJson(jsonData, (char*)data);
-      if(!error)
+      if (!error)
       {
-        if(jsonData.containsKey("config_type"))
+        if (jsonData.containsKey("config_type"))
         {
           const char* configType = jsonData["config_type"];
-          if(strcmp(configType, "greenhouse") == 0)
+          if (strcmp(configType, "greenhouse") == 0)
           {
             gh_target_temperature = jsonData['target_temperature'];
             gh_time_on_isSet = jsonData['time_on_isSet'];
-            if(gh_time_on_isSet)
+            if (gh_time_on_isSet)
             {
               gh_hour_on = jsonData['hour_on'];
               gh_minute_on = jsonData['minute_on'];
@@ -269,7 +325,7 @@ void webSocketOnMessage(void *arg, uint8_t *data, size_t len)
               gh_minute_on = 0;
             }
             gh_time_off_isSet = jsonData['time_off_isSet'];
-            if(gh_time_off_isSet)
+            if (gh_time_off_isSet)
             {
               gh_hour_off = jsonData['hour_off'];
               gh_minute_off = jsonData['minute_off'];
@@ -287,10 +343,10 @@ void webSocketOnMessage(void *arg, uint8_t *data, size_t len)
             preferences.putInt("gh_hour_off", gh_hour_off);
             preferences.putInt("gh_minute_off", gh_minute_off);
           }
-          else if(strcmp(configType, "leds") == 0)
+          else if (strcmp(configType, "leds") == 0)
           {
             led_1_time_on_isSet = jsonData['led_1_time_on_isSet'];
-            if(led_1_time_on_isSet)
+            if (led_1_time_on_isSet)
             {
               led_1_hour_on = jsonData['led_1_hour_on'];
               led_1_minute_on = jsonData['led_1_minute_on'];
@@ -301,7 +357,7 @@ void webSocketOnMessage(void *arg, uint8_t *data, size_t len)
               led_1_minute_on = 0;
             }
             led_1_time_off_isSet = jsonData['led_1_time_off_isSet'];
-            if(led_1_time_off_isSet)
+            if (led_1_time_off_isSet)
             {
               led_1_hour_off = jsonData['led_1_hour_off'];
               led_1_minute_off = jsonData['led_1_minute_off'];
@@ -322,10 +378,10 @@ void webSocketOnMessage(void *arg, uint8_t *data, size_t len)
             preferences.putInt("l1_hour_off", led_1_hour_off);
             preferences.putInt("l1_minute_off", led_1_minute_off);
           }
-          else if(strcmp(configType, "water_pump") == 0)
+          else if (strcmp(configType, "water_pump") == 0)
           {
             wp_temperature_above_isSet = jsonData['temperature_above_isSet'];
-            if(wp_temperature_above_isSet)
+            if (wp_temperature_above_isSet)
             {
               wp_temperature_above = jsonData['temperature_above'];
             }
@@ -334,7 +390,7 @@ void webSocketOnMessage(void *arg, uint8_t *data, size_t len)
               wp_temperature_above = 0;
             }
             wp_temperature_below_isSet = jsonData['temperature_below_isSet'];
-            if(wp_temperature_below_isSet)
+            if (wp_temperature_below_isSet)
             {
               wp_temperature_below = jsonData['temperature_below'];
             }
@@ -343,7 +399,7 @@ void webSocketOnMessage(void *arg, uint8_t *data, size_t len)
               wp_temperature_below = 0;
             }
             wp_humidity_above_isSet = jsonData['humidity_above_isSet'];
-            if(wp_humidity_above_isSet)
+            if (wp_humidity_above_isSet)
             {
               wp_humidity_above = jsonData['humidity_above'];
             }
@@ -352,7 +408,7 @@ void webSocketOnMessage(void *arg, uint8_t *data, size_t len)
               wp_humidity_above = 0;
             }
             wp_humidity_below_isSet = jsonData['humidity_below_isSet'];
-            if(wp_humidity_below_isSet)
+            if (wp_humidity_below_isSet)
             {
               wp_humidity_below = jsonData['humidity_below'];
             }
@@ -382,20 +438,20 @@ void webSocketNotify(String values)
 
 void readSensorsValues()
 {
-  if(BME280_Status)
+  if (BME280_Status)
   {
     BME280_Temperature = hBME280.readTemperature();
     BME280_Humidity = hBME280.readHumidity();
   }
-  if(BME280_Status)
+  if (BMP280_Status)
   {
     BMP280_Temperature = hBMP280.readTemperature();
   }
-  if(BH1750_Status)
+  if (BH1750_Status)
   {
     BH1750_Light = hBH1750.readLightLevel();
   }
-  if(digitalRead(HCSR501_PORT) == HIGH)
+  if (digitalRead(HCSR501_PORT) == HIGH)
   {
     HCSR501_Motion = true;
   }
@@ -408,28 +464,28 @@ void readSensorsValues()
 void operateLamps()
 {
   struct tm timeinfo;
-  if(led_1_time_on_isSet && timeinfo.tm_hour == led_1_hour_on && timeinfo.tm_min == led_1_minute_on)
+  if (led_1_time_on_isSet && timeinfo.tm_hour == led_1_hour_on && timeinfo.tm_min == led_1_minute_on)
   {
-    if(digitalRead(LED1_PORT) == LOW)
+    if (digitalRead(LED1_PORT) == LOW)
     {
       digitalWrite(LED1_PORT, HIGH);
     }
   }
-  else if(led_1_time_off_isSet && timeinfo.tm_hour == led_1_hour_off && timeinfo.tm_min == led_1_minute_off)
+  else if (led_1_time_off_isSet && timeinfo.tm_hour == led_1_hour_off && timeinfo.tm_min == led_1_minute_off)
   {
-    if(digitalRead(LED1_PORT) == HIGH)
+    if (digitalRead(LED1_PORT) == HIGH)
     {
       digitalWrite(LED1_PORT, LOW);
     }
   }
-  if((led_2_dusk && BH1750_Light <= BH1750_LightDusk) || (led_2_motion && HCSR501_Motion))
+  if ((led_2_dusk && BH1750_Light <= BH1750_LightDusk) || (led_2_motion && HCSR501_Motion))
   {
-    if(digitalRead(LED2_PORT) == LOW)
+    if (digitalRead(LED2_PORT) == LOW)
     {
       digitalWrite(LED2_PORT, HIGH);
     }
   }
-  else if(digitalRead(LED2_PORT) == HIGH)
+  else if (digitalRead(LED2_PORT) == HIGH)
   {
     digitalWrite(LED2_PORT, LOW);
   }
@@ -437,30 +493,56 @@ void operateLamps()
 
 void operateWaterPump()
 {
-  if(wp_humidity_above_isSet && BME280_Humidity >= wp_humidity_above)
+  if (wp_humidity_above_isSet && BME280_Humidity >= wp_humidity_above)
   {
-    if(digitalRead(WATERPUMP_PORT) == HIGH)
+    if (digitalRead(WATERPUMP_PORT) == HIGH)
     {
       digitalWrite(WATERPUMP_PORT, LOW);
     }
   }
-  else if(wp_temperature_above_isSet && BME280_Temperature >= wp_temperature_above)
+  else if (wp_temperature_above_isSet && BME280_Temperature >= wp_temperature_above)
   {
-    if(digitalRead(WATERPUMP_PORT) == HIGH)
+    if (digitalRead(WATERPUMP_PORT) == HIGH)
     {
       digitalWrite(WATERPUMP_PORT, LOW);
     }
   }
-  else if(wp_humidity_below_isSet && BME280_Humidity <= wp_humidity_below)
+  else if (wp_humidity_below_isSet && BME280_Humidity <= wp_humidity_below)
   {
-    if(!wp_temperature_below_isSet || (wp_temperature_below_isSet && BME280_Temperature <= wp_temperature_below))
+    if (!wp_temperature_below_isSet || (wp_temperature_below_isSet && BME280_Temperature <= wp_temperature_below))
     {
-      if(digitalRead(WATERPUMP_PORT) == LOW)
+      if (digitalRead(WATERPUMP_PORT) == LOW)
       {
         digitalWrite(WATERPUMP_PORT, HIGH);
       }
     }
   }
+}
+
+float PID_previous_error = 0.0;
+float PID_previous_integral = 0.0;
+float PID_Kp = 0.0453165;
+float PID_Ki = 0.000163058;
+float PID_Kd = 0.6988927;
+float PID_dt = 0.1;
+
+float PIDTemperatureControl(float setPoint, float measured)
+{
+  float u, P, I, D, error, integral, derivative;
+
+  error = setPoint - measured;
+  integral = PID_previous_integral + (error + PID_previous_error);
+  derivative = (error - PID_previous_error) / PID_dt;
+  
+  PID_previous_integral = integral;
+  PID_previous_error = error;
+
+  P = PID_Kp * error;
+  I = PID_Ki * integral * (PID_dt / 2.0);
+  D = PID_Kd * derivative;
+
+  u = P + I + D;
+  return u;
 }
 
 String JSONGreenHouseValues()
@@ -533,7 +615,7 @@ String JSONInformationValues()
   InformationValues["outside-temp"] = sBuffer;
   snprintf(sBuffer, sizeof(sBuffer), "%0.2f %%", BME280_Humidity);
   InformationValues["humidity"] = sBuffer;
-  if(digitalRead(LED1_PORT) == LOW)
+  if(digitalRead(LED1_PORT) == HIGH)
   {
     snprintf(sBuffer, sizeof(sBuffer), "Wyłączona");
   }
@@ -542,7 +624,7 @@ String JSONInformationValues()
     snprintf(sBuffer, sizeof(sBuffer), "Włączona");
   }
   InformationValues["lamp-1-state"] = sBuffer;
-  if(digitalRead(LED2_PORT) == LOW)
+  if(digitalRead(LED2_PORT) == HIGH)
   {
     snprintf(sBuffer, sizeof(sBuffer), "Wyłączona");
   }
@@ -551,7 +633,7 @@ String JSONInformationValues()
     snprintf(sBuffer, sizeof(sBuffer), "Włączona");
   }
   InformationValues["lamp-2-state"] = sBuffer;
-  if(digitalRead(WATERPUMP_PORT) == LOW)
+  if(digitalRead(WATERPUMP_PORT) == HIGH)
   {
     snprintf(sBuffer, sizeof(sBuffer), "Wyłączona");
   }
