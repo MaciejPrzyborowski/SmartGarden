@@ -10,24 +10,37 @@
 <body>
     <section id="greenhouse" class="config-section">
         <fieldset>
-            <legend>Konfiguracja szklarni</legend>
-            <div class="greenhouse-form-element">
-                <input type="checkbox" class="form-checkbox" data-action="greenhouse-checkbox-toggle">
-                <label for="">Docelowa tempatatura w szklarni: </label>
-                <input type="range" min="30" max="50" class="form-input" name="greenhouse_target_temperature" data-action="greenhouse-input">
-                <span data-action="display-value" data-unit="degree"></span>
-            </div>
-            <div class="greenhouse-form-element">
-                <input type="checkbox" class="form-checkbox" data-action="greenhouse-checkbox-toggle">
-                <label for="">Włącz regulator gdy temperatura w szklarni spadnie poniżej: </label>
-                <input type="range" min="20" max="50" class="form-input" name="greenhouse_temperature_below" data-action="greenhouse-input">
-                <span data-action="display-value" data-unit="degree"></span>
-            </div>
-            <div class="greenhouse-form-element">
-                <input type="checkbox" class="form-checkbox" data-action="greenhouse-checkbox-toggle">
-                <label for="">Wyłącz regulator o godzinie:</label>
-                <input type="time"class="form-input" name="greenhouse_time_off" data-action="greenhouse-input">
-            </div>
+            <legend><h3>Konfiguracja szklarni</h3></legend>
+            <ul>
+                <li>
+                    <input type="radio" name="greenhouse_mode" value="auto" id="gh_auto_mode" data-element="greenhouse-form">
+                    <label for="gh_auto_mode">Tryb automatyczny</label><br>
+                    <div class="gh-auto-mode subsettings">
+                        <div class="greenhouse-auto-form-element">
+                            <input type="checkbox" class="form-checkbox invisible value" id="gh_target_temp_is_set" data-action="greenhouse-checkbox-toggle">
+                            Docelowa tempatatura w szklarni:
+                            <input type="range" min="30" max="50" class="form-input" name="gh_target_temp" data-action="greenhouse-input" disabled>
+                            <span data-action="greenhouse-display-value" data-unit="degrees"></span>
+                        </div>
+                        <div class="greenhouse-auto-form-element">
+                            <input type="checkbox" class="form-checkbox value" id="gh_temp_off_is_set" data-action="greenhouse-checkbox-toggle" data-element="greenhouse-form">
+                            <label for="gh_temp_off_is_set">Wyłącz gdy temperatura powietrza jest większa niż </label>
+                            <input type="range" min="20" max="40" class="form-input" name="gh_temp_off" data-action="greenhouse-input" disabled>
+                            <span data-action="greenhouse-display-value" data-unit="degrees"></span> 
+                        </div>
+                    </div>
+                </li>
+                <li>
+                    <input type="radio" name="greenhouse_mode" value="manual" id="gh_manual_mode" data-element="greenhouse-form">
+                    <label for="gh_manual_mode">Tryb ręczny</label><br>
+                    <div class="gh-manual-mode subsettings">
+                        <input type="radio" name="gh_manual" id="gh_manual_on" value="on" data-element="greenhouse-form">
+                        <label for="gh_manual_on">Włącz</label> <br>
+                        <input type="radio" name="gh_manual" id="gh_manual_off" value="off" data-element="greenhouse-form">
+                        <label for="gh_manual_off">Wyłącz</label> <br>
+                    </div>                
+                </li>
+            </ul>
             <div class="send-data-btn">
                 <button class="send-btn" data-action="reset-greenhouse-data">Reset</button>
             </div>
@@ -39,25 +52,63 @@
 
     <section id="led" class="config-section">
         <fieldset>
-            <legend>Konfiguracja lamp</legend>
-            <div class="led-1-form-element">
-                <input type="checkbox" class="form-checkbox" data-action="led-checkbox-toggle">
-                <label for="">Włącz lampę 1 o godzinie:</label>
-                <input type="time"class="form-input" name="led_1" data-action="led-input">
-            </div>
-            <div class="led-1-form-element">
-                <input type="checkbox" class="form-checkbox" data-action="led-checkbox-toggle">
-                <label for="">Wyłącz lampę 1 o godzinie:</label>
-                <input type="time"class="form-input" name="led_1_time_off" data-action="led-input">
-            </div>
-            <div class="led-2-form-element">
-                <input type="checkbox" name="led_2_dusk" class="form-checkbox" data-action="led-2-checkbox">
-                <label for="">Włącz lampę 2 o zmroku</label>
-            </div>
-            <div class="led-2-form-element">
-                <input type="checkbox" name="led_2_motion" class="form-checkbox" data-action="led-2-checkbox">
-                <label for="">Włącz lampę 2 przy wykryciu ruchu</label>
-            </div>
+            <legend><h4>Konfiguracja lamp</h4></legend>
+            <h4>Ustawienia lampy 1: </h4>
+            <ul>
+                <li>
+                    <input type="radio" name="led1_mode" value="auto" id="l1_auto_mode" data-element="led-form" class="leds_mode">
+                    <label for="l1_auto_mode">Tryb automatyczny</label><br>
+                    <div class="led-1-auto-mode subsettings">
+                        <div class="led-1-auto-form-element">
+                            <input type="checkbox" class="form-checkbox invisible" id="l1_time_on_is_set" data-action="led-1-checkbox-toggle" >
+                            <label>Włącz lampę 1 o godzinie:</label>
+                            <input type="time" class="form-input" name="l1_time_on" data-action="led-1-input" disabled>
+                        </div>
+                        <div class="led-1-auto-form-element">
+                            <input type="checkbox" class="form-checkbox" data-action="led-1-checkbox-toggle" id="l1_time_off_is_set" data-element="led-form">
+                            <label for="l1_time_off_is_set">Wyłącz lampę 1 o godzinie:</label>
+                            <input type="time"class="form-input" name="l1_time_off" data-action="led-1-input" disabled>
+                        </div>
+                    </div>
+                </li>
+                <li>
+                    <input type="radio" name="led1_mode" value="manual" id="l1_manual_mode" data-element="led-form" class="leds_mode">
+                    <label for="l1_manual_mode">Tryb ręczny</label><br>
+                    <div class="led-1-manual-mode subsettings">
+                        <input type="radio" name="l1_manual" value="on" id="l1_manual_on" data-element="led-form">
+                        <label for="l1_manual_on">Włącz</label><br>
+                        <input type="radio" name="l1_manual" value="off" id="l1_manual_off" data-element="led-form">
+                        <label for="l1_manual_off">Wyłącz</label><br>
+                    </div>
+                </li>
+            </ul>
+            <h4>Ustawienia lampy 2: </h4>
+            <ul>
+                <li>
+                    <input type="radio" name="led2_mode" value="auto" id="l2_auto_mode" data-element="led-form" class="leds_mode">
+                    <label for="l2_auto_mode">Tryb automatyczny</label><br>
+                    <div class="led-2-auto-mode subsettings">
+                        <input type="radio" name="l2_auto" value="dusk" id="l2_dusk" data-element="led-form">
+                        <label for="l2_dusk">Włącz lampę 2 o zmroku</label><br>
+        
+                        <input type="radio" name="l2_auto" value="motion" id="l2_motion" data-element="led-form">
+                        <label for="l2_motion">Włącz lampę 2 przy wykryciu ruchu</label><br>
+        
+                        <input type="radio" name="l2_auto" value="dusk_motion" id="l2_dusk_motion" data-element="led-form">
+                        <label for="l2_dusk_motion">Włącz lampę 2 przy wykryciu ruchu o zmroku</label>
+                    </div>
+                </li>
+                <li>
+                    <input type="radio" name="led2_mode" value="manual" id="l2_manual_mode" data-element="led-form" class="leds_mode">
+                    <label for="l2_manual_mode">Tryb ręczny</label><br>
+                    <div class="led-2-manual-mode subsettings">
+                        <input type="radio" name="l2_manual" value="on" id="l2_manual_on" data-element="led-form">
+                        <label for="l2_manual_on" >Włącz</label><br>
+                        <input type="radio" name="l2_manual" value="off" id="l2_manual_off" data-element="led-form">
+                        <label for="l2_manual_off">Wyłącz</label><br>
+                    </div>
+                </li>
+            </ul>
             <div class="send-data-btn">
                 <button class="send-btn" data-action="reset-led-data">Reset</button>
             </div>
@@ -69,31 +120,38 @@
 
     <section id="water-pump" class="config-section">
         <fieldset>
-            <legend>Konfiguracja pompy wody</legend>
-            <div class="water-pump-form-element">
-                <input type="checkbox" class="form-checkbox" data-action="water-pump-checkbox-toggle">
-                <label>Włącz gdy temperatura powietrza jest większa od:</label>
-                <input type="range" min="20" max="40" class="form-input" name="water_pump_temperature_above" data-action="water-pump-input">
-                <span data-action="display-value" data-unit="degree"></span>
-            </div>
-            <div class="water-pump-form-element">        
-                <input type="checkbox" class="form-checkbox" data-action="water-pump-checkbox-toggle">
-                <label>Włącz gdy temperatura powietrza jest mniejsza od:</label>
-                <input type="range" min="20" max="40" class="form-input" name="water_pump_temperature_below" data-action="water-pump-input">
-                <span data-action="display-value" data-unit="degree"></span>
-            </div>
-            <div class="water-pump-form-element">
-                <input type="checkbox" class="form-checkbox" data-action="water-pump-checkbox-toggle">
-                <label>Włącz gdy wilgotność powietrza jest mniejsza od:</label>
-                <input type="range" min="30" max="50" class="form-input" name="water_pump_humidity_below" data-action="water-pump-input">
-                <span data-action="display-value" data-unit="percent"></span>
-            </div>
-            <div class="water-pump-form-element">
-                <input type="checkbox" class="form-checkbox" data-action="water-pump-checkbox-toggle">
-                <label>Wyłącz gdy wilgotność powietrza jest większa od:</label>
-                <input type="range" min="51" max="70" class="form-input" name="water_pump_humidity_above" data-action="water-pump-input">
-                <span data-action="display-value" data-unit="percent"></span>
-            </div>
+            <legend><h4>Konfiguracja pompy wody</h4></legend>
+            <ul>
+                <li>
+                    <input type="radio" name="water_pump_mode" value="auto" id="wp_auto_mode" data-element="water-pump-form">
+                    <label for="wp_auto_mode">Tryb automatyczny</label><br>
+                    <div class="water-pump-auto-mode subsettings">
+                        <div class="water-pump-auto-form-element">
+                            <input type="checkbox" class="form-checkbox invisible value" id="wp_humidity_below_is_set" data-action="water-pump-checkbox-toggle">
+                            <label>Włącz gdy wilgotność powietrza jest mniejsza od:</label>
+                            <input type="range" min="30" max="50" class="form-input" name="wp_humidity_below" data-action="water-pump-input" disabled>
+                            <span data-action="water-pump-display-value" data-unit="percents"></span>
+                        </div>
+        
+                        <div class="water-pump-auto-form-element">
+                            <input type="checkbox" class="form-checkbox value" data-action="water-pump-checkbox-toggle" id="wp_duration_time_is_set" data-element="water-pump-form">
+                            <label for="wp_duration_time_is_set">Maksymalny czas trwania w ciągu dnia:</label>
+                            <input type="range" min="5" max="30" class="form-input" name="wp_duration_time" data-action="water-pump-input" disabled>
+                            <span data-action="water-pump-display-value" data-unit="minutes"></span>
+                        </div>
+                    </div>
+                </li>
+                <li>
+                    <input type="radio" name="water_pump_mode" value="manual" id="wp_manual_mode" data-element="water-pump-form">
+                    <label for="wp_manual_mode">Tryb ręczny</label><br>
+                    <div class="water-pump-manual-mode subsettings" disabled>
+                        <input type="radio" name="wp_manual" id="wp_manual_on"  value="on" data-element="water-pump-form">
+                        <label for="wp_manual_on">Włącz</label><br>
+                        <input type="radio" name="wp_manual" id="wp_manual_off"  value="off" data-element="water-pump-form">
+                        <label for="wp_manual_off">Wyłącz</label><br>
+                    </div>
+                </li>
+            </ul>
             <div class="send-data-btn">
                 <button class="send-btn" data-action="reset-water-pump-data">Reset</button>
             </div>
@@ -105,39 +163,39 @@
     
     <section id="info-data" class="config-section">
         <fieldset>
-            <legend>Informacje:</legend>
+            <legend><h3>Informacje:</h3></legend>
             <table>
                 <tr>
                     <td>Aktualna godzina:</td>
-                    <td id="current-time">___</td>
-                </tr>
-                <tr>
-                    <td>Temperatura w szklarni:</td>
-                    <td id="current-greenhouse-temp">___</td>
+                    <td id="current-time"></td>
                 </tr>
                 <tr>
                     <td>Ustawiona temperatura w szklarni:</td>
-                    <td id="target-greenhouse-temp">___</td>
+                    <td id="target-greenhouse-temp"></td>
+                </tr>
+                <tr>
+                    <td>Temperatura w szklarni:</td>
+                    <td id="current-greenhouse-temp"></td>
                 </tr>
                 <tr>
                     <td>Temperatura powietrza:</td>
-                    <td id="outside-temp">___</td>
+                    <td id="outside-temp"></td>
                 </tr>
                 <tr>
                     <td>Wilgotność powietrza:</td>
-                    <td id="humidity">___</td>
+                    <td id="humidity"></td>
                 </tr>
                 <tr>
                     <td>Lampa 1:</td>
-                    <td id="lamp-1-state">___</td>
+                    <td id="lamp-1-state"></td>
                 </tr>
                 <tr>
-                    <td>Lampa 1:</td>
-                    <td id="lamp-2-state">___</td>
+                    <td>Lampa 2:</td>
+                    <td id="lamp-2-state"></td>
                 </tr>
                 <tr>
                     <td>Stan pompy wody:</td>
-                    <td id="water-pump-state">___</td>
+                    <td id="water-pump-state"></td>
                 </tr>
             </table>
         </fieldset>

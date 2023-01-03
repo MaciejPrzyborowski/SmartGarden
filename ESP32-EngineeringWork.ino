@@ -42,46 +42,37 @@ const unsigned int GREENHOUSE_RES = 10;
 const unsigned int GREENHOUSE_FREQ = 2000;
 bool gh_auto_mode = false;
 bool gh_manual_mode = false;
-bool gh_manual_off = true;
-bool gh_manual_on = false;
+bool gh_manual_state = true;
 bool gh_temp_off_iS = false;
 unsigned int gh_target_temp = 0;
 unsigned int gh_temp_off = 0;
 
+float PID_current_time = 0.0;
 float PID_previous_error = 0.0;
 float PID_previous_integral = 0.0;
-float PID_Kp = 0.0453165;
-float PID_Ki = 0.000163058;
-float PID_Kd = 0.6988927;
-float PID_dt = 0.1;
 
-const unsigned int LED1_PORT = 26;
+const unsigned int LED1_PORT = 32;
 unsigned int LED1_State = HIGH;
 bool l1_auto_mode = false;
 bool l1_manual_mode = false;
-bool l1_manual_off = true;
-bool l1_manual_on = false;
+bool l1_manual_state = true;
 bool l1_time_off_iS = false;
 unsigned int l1_time_off_hour = 0;
 unsigned int l1_time_off_min = 0;
 unsigned int l1_time_on_hour = 0;
 unsigned int l1_time_on_min = 0;
 
-const unsigned int LED2_PORT = 27;
+const unsigned int LED2_PORT = 33;
 unsigned int LED2_State = HIGH;
 bool l2_auto_mode = false;
 bool l2_manual_mode = false;
-bool l2_manual_off = true;
-bool l2_manual_on = false;
-bool l2_dusk = false;
-bool l2_motion = false;
-bool l2_dusk_motion = false;
+bool l2_manual_state = true;
+unsigned int l2_detect_mode = 0;
 
-const unsigned int WATERPUMP_PORT = 25;
+const unsigned int WATERPUMP_PORT = 14;
 bool wp_auto_mode = false;
 bool wp_manual_mode = false;
-bool wp_manual_on = false;
-bool wp_manual_off = true;
+bool wp_manual_state = false;
 bool wp_duration_iS = false;
 unsigned int wp_duration = 0;
 unsigned int wp_humidity = 0;
@@ -177,7 +168,7 @@ void initTime()
     delay(100);
   }
   while (!getLocalTime(&timeinfo));
-  Serial.println(&timeinfo, "Data: %A, %B %d %Y %H:%M:%S");
+  Serial.println(&timeinfo, "Time: %A, %B %d %Y %H:%M:%S");
 }
 
 void initSensors()
@@ -218,8 +209,7 @@ void initSettingsData()
   // --- GreenHouse ---
   gh_auto_mode = preferences.getBool("gh_auto_mode", false);
   gh_manual_mode = preferences.getBool("gh_manual_mode", false);
-  gh_manual_off = preferences.getBool("gh_manual_off", true);
-  gh_manual_on = preferences.getBool("gh_manual_on", false);
+  gh_manual_state = preferences.getBool("gh_manual_state", true);
   gh_temp_off_iS = preferences.getBool("gh_temp_off_iS", false);
   gh_target_temp = preferences.getUInt("gh_target_temp", 0);
   gh_temp_off = preferences.getUInt("gh_temp_off", 0);
@@ -227,8 +217,7 @@ void initSettingsData()
   LED1_State = preferences.getUInt("LED1_State", HIGH);
   l1_auto_mode = preferences.getBool("l1_auto_mode", false);
   l1_manual_mode = preferences.getBool("l1_manual_mode", false);
-  l1_manual_off = preferences.getBool("l1_manual_off", true);
-  l1_manual_on = preferences.getBool("l1_manual_on", false);
+  l1_manual_state = preferences.getBool("l1_manual_state", true);
   l1_time_off_iS = preferences.getBool("l1_time_off_iS", false);
   l1_time_off_hour = preferences.getUInt("l1_off_hour", 0);
   l1_time_off_min = preferences.getUInt("l1_off_min", 0);
@@ -238,16 +227,12 @@ void initSettingsData()
   LED2_State = preferences.getUInt("LED2_State", HIGH);
   l2_auto_mode = preferences.getBool("l2_auto_mode", false);
   l2_manual_mode = preferences.getBool("l2_manual_mode", false);
-  l2_manual_off = preferences.getBool("l2_manual_off", true);
-  l2_manual_on = preferences.getBool("l2_manual_on", false);
-  l2_dusk = preferences.getBool("l2_dusk", false);
-  l2_motion = preferences.getBool("l2_motion", false);
-  l2_dusk_motion = preferences.getBool("l2_dusk_motion", false);
+  l2_manual_state = preferences.getBool("l2_manual_state", true);
+  l2_detect_mode = preferences.getUInt("l2_detect_mode", false);
   // --- WaterPump ---
   wp_auto_mode = preferences.getBool("wp_auto_mode", false);
   wp_manual_mode = preferences.getBool("wp_manual_mode", false);
-  wp_manual_on = preferences.getBool("wp_manual_on", false);
-  wp_manual_off = preferences.getBool("wp_manual_off", true);
+  wp_manual_state = preferences.getBool("wp_manual_state", false);
   wp_duration_iS = preferences.getBool("wp_duration_iS", false);
   wp_duration = preferences.getUInt("wp_duration", 0);
   wp_humidity = preferences.getUInt("wp_humidity", 0);
@@ -311,35 +296,32 @@ void webSocketOnMessage(void *arg, uint8_t *data, size_t len)
           const char* cfgType = jsonData["cfg"];
           if (strcmp(cfgType, "greenhouse") == 0)
           {
-            gh_auto_mode = jsonData['gh_auto_mode'];
+            gh_auto_mode = jsonData["gh_auto_mode"];
             if (gh_auto_mode)
             {
-              gh_target_temp = jsonData['gh_target_temp'];
-              gh_temp_off_iS = jsonData['gh_temp_off_is_set'];
+              gh_target_temp = jsonData["gh_target_temp"];
+              gh_temp_off_iS = jsonData["gh_temp_off_is_set"];
               if (gh_temp_off_iS)
               {
-                gh_temp_off = jsonData['gh_temp_off'];
+                gh_temp_off = jsonData["gh_temp_off"];
               }
               else
               {
                 gh_temp_off = 0;
               }
               gh_manual_mode = false;
-              gh_manual_off = false;
-              gh_manual_on = false;
+              gh_manual_state = false;
             }
             else
             {
-              gh_manual_mode = jsonData['gh_manual_mode'];
+              gh_manual_mode = jsonData["gh_manual_mode"];
               if (gh_manual_mode)
               {
-                gh_manual_on = jsonData['gh_manual_on'];
-                gh_manual_off = jsonData['gh_manual_off'];
+                gh_manual_state = jsonData["gh_manual_state"];
               }
               else
               {
-                gh_manual_on = false;
-                gh_manual_off = false;
+                gh_manual_state = false;
               }
               gh_temp_off_iS = false;
               gh_target_temp = 0;
@@ -347,24 +329,26 @@ void webSocketOnMessage(void *arg, uint8_t *data, size_t len)
             }
             preferences.putBool("gh_auto_mode", gh_auto_mode);
             preferences.putBool("gh_manual_mode", gh_manual_mode);
-            preferences.putBool("gh_manual_off", gh_manual_off);
-            preferences.putBool("gh_manual_on", gh_manual_on);
+            preferences.putBool("gh_manual_state", gh_manual_state);
             preferences.putBool("gh_temp_off_iS", gh_temp_off_iS);
             preferences.putUInt("gh_target_temp", gh_target_temp);
             preferences.putUInt("gh_temp_off", gh_temp_off);
+            PID_previous_integral = 0.0;
+            PID_previous_error = 0.0;
+            PID_current_time = 0.0;
           }
           else if (strcmp(cfgType, "led") == 0)
           {
-            l1_auto_mode = jsonData['l1_auto_mode'];
+            l1_auto_mode = jsonData["l1_auto_mode"];
             if (l1_auto_mode)
             {
-              l1_time_on_hour = jsonData['l1_time_on_hour'];
-              l1_time_on_min = jsonData['l1_time_on_min'];
-              l1_time_off_iS = jsonData['l1_time_off_is_set'];
+              l1_time_on_hour = jsonData["l1_time_on_hour"];
+              l1_time_on_min = jsonData["l1_time_on_min"];
+              l1_time_off_iS = jsonData["l1_time_off_is_set"];
               if (l1_time_off_iS)
               {
-                l1_time_off_hour = jsonData['l1_time_off_hour'];
-                l1_time_off_min = jsonData['l1_time_off_min'];
+                l1_time_off_hour = jsonData["l1_time_off_hour"];
+                l1_time_off_min = jsonData["l1_time_off_min"];
               }
               else
               {
@@ -372,21 +356,18 @@ void webSocketOnMessage(void *arg, uint8_t *data, size_t len)
                 l1_time_off_min = 0;
               }
               l1_manual_mode = false;
-              l1_manual_off = false;
-              l1_manual_on = false;
+              l1_manual_state = false;
             }
             else
             {
-              l1_manual_mode = jsonData['l1_manual_mode'];
+              l1_manual_mode = jsonData["l1_manual_mode"];
               if (l1_manual_mode)
               {
-                l1_manual_on = jsonData['l1_manual_on'];
-                l1_manual_off = jsonData['l1_manual_off'];
+                l1_manual_state = jsonData["l1_manual_state"];
               }
               else
               {
-                l1_manual_on = false;
-                l1_manual_off = false;
+                l1_manual_state = false;
               }
               l1_time_off_iS = false;
               l1_time_off_hour = 0;
@@ -394,37 +375,29 @@ void webSocketOnMessage(void *arg, uint8_t *data, size_t len)
               l1_time_on_hour = 0;
               l1_time_on_min = 0;
             }
-            l2_auto_mode = jsonData['l2_auto_mode'];
+            l2_auto_mode = jsonData["l2_auto_mode"];
             if (l2_auto_mode)
             {
-              l2_dusk = jsonData['l2_dusk'];
-              l2_motion = jsonData['l2_motion'];
-              l2_dusk_motion = jsonData['l2_dusk_motion'];
+              l2_detect_mode = jsonData["l2_detect_mode"];
               l2_manual_mode = false;
-              l2_manual_off = false;
-              l2_manual_on = false;
+              l2_manual_state = false;
             }
             else
             {
-              l2_manual_mode = jsonData['l2_manual_mode'];
+              l2_manual_mode = jsonData["l2_manual_mode"];
               if (l2_manual_mode)
               {
-                l2_manual_on = jsonData['l2_manual_on'];
-                l2_manual_off = jsonData['l2_manual_off'];
+                l2_manual_state = jsonData["l2_manual_state"];
               }
               else
               {
-                l2_manual_on = false;
-                l2_manual_off = false;
+                l2_manual_state = false;
               }
-              l2_dusk_motion = false;
-              l2_motion = false;
-              l2_dusk = false;
+              l2_detect_mode = 0;
             }
             preferences.putBool("l1_auto_mode", l1_auto_mode);
             preferences.putBool("l1_manual_mode", l1_manual_mode);
-            preferences.putBool("l1_manual_off", l1_manual_off);
-            preferences.putBool("l1_manual_on", l1_manual_on);
+            preferences.putBool("l1_manual_state", l1_manual_state);
             preferences.putBool("l1_time_off_iS", l1_time_off_iS);
             preferences.putUInt("l1_off_hour", l1_time_off_hour);
             preferences.putUInt("l1_off_min", l1_time_off_min);
@@ -432,43 +405,37 @@ void webSocketOnMessage(void *arg, uint8_t *data, size_t len)
             preferences.putUInt("l1_on_min", l1_time_on_min);
             preferences.putBool("l2_auto_mode", l2_auto_mode);
             preferences.putBool("l2_manual_mode", l2_manual_mode);
-            preferences.putBool("l2_manual_off", l2_manual_off);
-            preferences.putBool("l2_manual_on", l2_manual_on);
-            preferences.putBool("l2_dusk", l2_dusk);
-            preferences.putBool("l2_motion", l2_motion);
-            preferences.putBool("l2_dusk_motion", l2_dusk_motion);
+            preferences.putBool("l2_manual_state", l2_manual_state);
+            preferences.putUInt("l2_detect_mode", l2_detect_mode);
           }
           else if (strcmp(cfgType, "water_pump") == 0)
           {
-            wp_auto_mode = jsonData['wp_auto_mode'];
+            wp_auto_mode = jsonData["wp_auto_mode"];
             if (wp_auto_mode)
             {
-              wp_humidity = jsonData['wp_humidity_below'];
-              wp_duration_iS = jsonData['wp_duration_time_is_set'];
+              wp_humidity = jsonData["wp_humidity_below"];
+              wp_duration_iS = jsonData["wp_duration_time_is_set"];
               if (wp_duration_iS)
               {
-                wp_duration = jsonData['wp_duration_time'];
+                wp_duration = jsonData["wp_duration_time"];
               }
               else
               {
                 wp_duration = 0;
               }
               wp_manual_mode = false;
-              wp_manual_off = false;
-              wp_manual_on = false;
+              wp_manual_state = false;
             }
             else
             {
-              wp_manual_mode = jsonData['wp_manual_mode'];
+              wp_manual_mode = jsonData["wp_manual_mode"];
               if (wp_manual_mode)
               {
-                wp_manual_on = jsonData['wp_manual_on'];
-                wp_manual_off = jsonData['wp_manual_off'];
+                wp_manual_state = jsonData["wp_manual_state"];
               }
               else
               {
-                wp_manual_on = false;
-                wp_manual_off = false;
+                wp_manual_state = false;
               }
               wp_duration_iS = false;
               wp_duration = 0;
@@ -476,8 +443,7 @@ void webSocketOnMessage(void *arg, uint8_t *data, size_t len)
             }
             preferences.putBool("wp_auto_mode", wp_auto_mode);
             preferences.putBool("wp_manual_mode", wp_manual_mode);
-            preferences.putBool("wp_manual_on", wp_manual_on);
-            preferences.putBool("wp_manual_off", wp_manual_off);
+            preferences.putBool("wp_manual_state", wp_manual_state);
             preferences.putBool("wp_duration_iS", wp_duration_iS);
             preferences.putUInt("wp_duration", wp_duration);
             preferences.putUInt("wp_humidity", wp_humidity);
@@ -531,7 +497,7 @@ void operateGreenHouse()
     }
     else
     {
-      float PWM_Duty = 1023.0 * PIDTemperatureControl(gh_target_temp, BMP280_Temperature);
+      float PWM_Duty = 1023.0 * PITemperatureControl(gh_target_temp, BMP280_Temperature);
       if (PWM_Duty < 0.0)
       {
         PWM_Duty = 0.0;
@@ -542,9 +508,15 @@ void operateGreenHouse()
       }
       unsigned int iPWM_Duty = round(PWM_Duty);
       ledcWrite(GREENHOUSE_CH, iPWM_Duty);
+      Serial.print(PID_current_time);
+      Serial.print(";");
+      Serial.print(iPWM_Duty);
+      Serial.print(";");
+      Serial.println(BMP280_Temperature);
+      PID_current_time += 0.1;
     }
   }
-  else if (gh_manual_mode && gh_manual_on)
+  else if (gh_manual_mode && gh_manual_state)
   {
     if (ledcRead(GREENHOUSE_CH) != 1023)
     {
@@ -562,7 +534,10 @@ void operateLed1()
   if (l1_auto_mode)
   {
     struct tm timeinfo;
-    if (l1_time_off_iS && timeinfo.tm_hour == l1_time_off_hour && timeinfo.tm_min == l1_time_off_min)
+    getLocalTime(&timeinfo);
+    int cHour = timeinfo.tm_hour;
+    int cMin = timeinfo.tm_min;
+    if (l1_time_off_iS && cHour == l1_time_off_hour && cMin == l1_time_off_min)
     {
       if (digitalRead(LED1_PORT) == LOW)
       {
@@ -571,7 +546,7 @@ void operateLed1()
         preferences.putUInt("LED1_State", LED1_State);
       }
     }
-    else if (timeinfo.tm_hour == l1_time_on_hour && timeinfo.tm_min == l1_time_on_min)
+    else if (cHour == l1_time_on_hour && cMin == l1_time_on_min)
     {
       if (digitalRead(LED1_PORT) == HIGH)
       {
@@ -581,7 +556,7 @@ void operateLed1()
       }
     }
   }
-  else if (l1_manual_mode && l1_manual_on)
+  else if (l1_manual_mode && l1_manual_state)
   {
     if (digitalRead(LED1_PORT) == HIGH)
     {
@@ -602,7 +577,7 @@ void operateLed2()
 {
   if (l2_auto_mode)
   {
-    if (((l2_dusk || l2_dusk_motion) && BH1750_Light <= BH1750_LightDusk) || ((l2_motion || l2_dusk_motion) && HCSR501_Motion))
+    if (((l2_detect_mode == 1 || l2_detect_mode == 3) && BH1750_Light <= BH1750_LightDusk) || ((l2_detect_mode == 2 || l2_detect_mode == 3) && HCSR501_Motion))
     {
       if (digitalRead(LED2_PORT) == HIGH)
       {
@@ -618,7 +593,7 @@ void operateLed2()
       preferences.putUInt("LED2_State", LED2_State);
     }
   }
-  else if (l2_manual_mode && l2_manual_on)
+  else if (l2_manual_mode && l2_manual_state)
   {
     if (digitalRead(LED2_PORT) == HIGH)
     {
@@ -642,6 +617,7 @@ void operateWaterPump()
     if (wp_duration_iS && digitalRead(WATERPUMP_PORT) == LOW)
     {
       struct tm timeinfo;
+      getLocalTime(&timeinfo);
       if (timeinfo.tm_mday == wp_duration_day)
       {
         wp_duration_sec++;
@@ -668,8 +644,12 @@ void operateWaterPump()
         digitalWrite(WATERPUMP_PORT, LOW);
       }
     }
+    else if (digitalRead(WATERPUMP_PORT) == LOW)
+    {
+      digitalWrite(WATERPUMP_PORT, HIGH);
+    }
   }
-  else if (wp_manual_mode && wp_manual_on)
+  else if (wp_manual_mode && wp_manual_state)
   {
     if (digitalRead(WATERPUMP_PORT) == HIGH)
     {
@@ -682,20 +662,44 @@ void operateWaterPump()
   }
 }
 
-float PIDTemperatureControl(float setPoint, float measured)
+float PITemperatureControl(float setPoint, float measured)
 {
-  float u, P, I, D, error, integral, derivative;
+  float u, P, I, error, integral;
+  float Kp = 0.0886913;
+  float Ki = 0.0002630015;
+  float dt = 0.1;
 
   error = setPoint - measured;
   integral = PID_previous_integral + (error + PID_previous_error);
-  derivative = (error - PID_previous_error) / PID_dt;
 
   PID_previous_integral = integral;
   PID_previous_error = error;
 
-  P = PID_Kp * error;
-  I = PID_Ki * integral * (PID_dt / 2.0);
-  D = PID_Kd * derivative;
+  P = Kp * error;
+  I = Ki * integral * (dt / 2.0);
+
+  u = P + I;
+  return u;
+}
+
+float PIDTemperatureControl(float setPoint, float measured)
+{
+  float u, P, I, D, error, integral, derivative;
+  float Kp = 0.0453165;
+  float Ki = 0.000163058;
+  float Kd = 0.6988927;
+  float dt = 0.1;
+
+  error = setPoint - measured;
+  integral = PID_previous_integral + (error + PID_previous_error);
+  derivative = (error - PID_previous_error) / dt;
+
+  PID_previous_integral = integral;
+  PID_previous_error = error;
+
+  P = Kp * error;
+  I = Ki * integral * (dt / 2.0);
+  D = Kd * derivative;
 
   u = P + I + D;
   return u;
@@ -707,8 +711,7 @@ String JSONGreenHouseValues()
   StaticJsonDocument<300> GreenHouseValues;
   GreenHouseValues["gh_auto_mode"] = gh_auto_mode;
   GreenHouseValues["gh_manual_mode"] = gh_manual_mode;
-  GreenHouseValues["gh_manual_on"] = gh_manual_on;
-  GreenHouseValues["gh_manual_off"] = gh_manual_off;
+  GreenHouseValues["gh_manual_state"] = gh_manual_state;
   GreenHouseValues["gh_target_temp"] = gh_target_temp;
   GreenHouseValues["gh_temp_off_is_set"] = gh_temp_off_iS;
   GreenHouseValues["gh_temp_off"] = gh_temp_off;
@@ -722,8 +725,7 @@ String JSONLedsValues()
   StaticJsonDocument<400> LampsValues;
   LampsValues["l1_auto_mode"] = l1_auto_mode;
   LampsValues["l1_manual_mode"] = l1_manual_mode;
-  LampsValues["l1_manual_on"] = l1_manual_on;
-  LampsValues["l1_manual_off"] = l1_manual_off;
+  LampsValues["l1_manual_state"] = l1_manual_state;
   LampsValues["l1_time_on_hour"] = l1_time_on_hour;
   LampsValues["l1_time_on_min"] = l1_time_on_min;
   LampsValues["l1_time_off_is_set"] = l1_time_off_iS;
@@ -731,11 +733,8 @@ String JSONLedsValues()
   LampsValues["l1_time_off_min"] = l1_time_off_min;
   LampsValues["l2_auto_mode"] = l2_auto_mode;
   LampsValues["l2_manual_mode"] = l2_manual_mode;
-  LampsValues["l2_manual_on"] = l2_manual_on;
-  LampsValues["l2_manual_off"] = l2_manual_off;
-  LampsValues["l2_dusk"] = l2_dusk;
-  LampsValues["l2_motion"] = l2_motion;
-  LampsValues["l2_dusk_motion"] = l2_dusk_motion;
+  LampsValues["l2_manual_state"] = l2_manual_state;
+  LampsValues["l2_detect_mode"] = l2_detect_mode;
   serializeJson(LampsValues, JSONString);
   return JSONString;
 }
@@ -746,8 +745,7 @@ String JSONWaterPumpValues()
   StaticJsonDocument<300> WaterPumpValues;
   WaterPumpValues["wp_auto_mode"] = wp_auto_mode;
   WaterPumpValues["wp_manual_mode"] = wp_manual_mode;
-  WaterPumpValues["wp_manual_on"] = wp_manual_on;
-  WaterPumpValues["wp_manual_off"] = wp_manual_off;
+  WaterPumpValues["wp_manual_state"] = wp_manual_state;
   WaterPumpValues["wp_humidity_below"] = wp_humidity;
   WaterPumpValues["wp_duration_time_is_set"] = wp_duration_iS;
   WaterPumpValues["wp_duration_time"] = wp_duration;
@@ -778,31 +776,31 @@ String JSONInformationValues()
   InformationValues["outside-temp"] = sBuffer;
   snprintf(sBuffer, sizeof(sBuffer), "%0.2f %%", BME280_Humidity);
   InformationValues["humidity"] = sBuffer;
-  if (digitalRead(LED1_PORT) == HIGH)
+  if (digitalRead(LED1_PORT) == LOW)
   {
-    snprintf(sBuffer, sizeof(sBuffer), "Wyłączona");
+    snprintf(sBuffer, sizeof(sBuffer), "Włączona");
   }
   else
   {
-    snprintf(sBuffer, sizeof(sBuffer), "Włączona");
+    snprintf(sBuffer, sizeof(sBuffer), "Wyłączona");
   }
   InformationValues["lamp-1-state"] = sBuffer;
-  if (digitalRead(LED2_PORT) == HIGH)
+  if (digitalRead(LED2_PORT) == LOW)
   {
-    snprintf(sBuffer, sizeof(sBuffer), "Wyłączona");
+    snprintf(sBuffer, sizeof(sBuffer), "Włączona");
   }
   else
   {
-    snprintf(sBuffer, sizeof(sBuffer), "Włączona");
+    snprintf(sBuffer, sizeof(sBuffer), "Wyłączona");
   }
   InformationValues["lamp-2-state"] = sBuffer;
-  if (digitalRead(WATERPUMP_PORT) == HIGH)
+  if (digitalRead(WATERPUMP_PORT) == LOW)
   {
-    snprintf(sBuffer, sizeof(sBuffer), "Wyłączona");
+    snprintf(sBuffer, sizeof(sBuffer), "Włączona");
   }
   else
   {
-    snprintf(sBuffer, sizeof(sBuffer), "Włączona");
+    snprintf(sBuffer, sizeof(sBuffer), "Wyłączona");
   }
   InformationValues["water-pump-state"] = sBuffer;
   serializeJson(InformationValues, JSONString);
