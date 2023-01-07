@@ -1,6 +1,6 @@
 body{
     margin: 0;
-    padding: 30px 10%;
+    padding: 20px 10%;
     font-size: 20px;
     background-color: #101010;
     color: #D1D1D1;
@@ -43,6 +43,8 @@ fieldset legend{
 }
 .config-section{
     padding: 10px;
+    /* width: 1400px; */
+    margin: auto;
     margin-top: 5px;
 }
 .form-checkbox{
@@ -96,4 +98,11 @@ h3 {
 li {
     margin-left: -30px;
     list-style-type: none;
+}
+
+#myChart {
+    width: 100%;
+    margin: auto;
+    margin-top: 20px;
+    /* background-color: white; */
 }

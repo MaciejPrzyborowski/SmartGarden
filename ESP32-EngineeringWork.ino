@@ -4,13 +4,16 @@
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <Preferences.h>
+#include <virtuabotixRTC.h>
 #include <Adafruit_BME280.h>
 #include <Adafruit_BMP280.h>
 #include <BH1750.h>
 #include "SPIFFS.h"
-#include "time.h"
 
 Preferences preferences;
+
+//const char* ssid = "Inteligentny ogród";
+//const char* password = "SmartGarden";
 
 const char* ssid = "najlepsza wifi na osce 2.4G";
 const char* password = "studentpiwo";
@@ -85,14 +88,16 @@ unsigned long previousMillis_peroid2 = 0;
 const unsigned long period1 = 100;
 const unsigned long period2 = 1000;
 
+virtuabotixRTC RTC(18, 19, 23);
+
 void setup()
 {
   Serial.begin(115200);
   Serial.println("--- INIT TEST ---");
   initPorts();
   initFS();
+  //initAP();
   initWiFi();
-  initTime();
   initSensors();
   initSettingsData();
   initWebServerSocket();
@@ -144,6 +149,14 @@ void initFS()
   }
 }
 
+void initAP()
+{
+  WiFi.mode(WIFI_AP);
+  WiFi.softAP(ssid, password);
+  Serial.print("WiFi: ");
+  Serial.println(WiFi.softAPIP());
+}
+
 void initWiFi()
 {
   WiFi.mode(WIFI_STA);
@@ -154,21 +167,6 @@ void initWiFi()
   }
   Serial.print("WiFi: ");
   Serial.println(WiFi.localIP());
-}
-
-void initTime()
-{
-  struct tm timeinfo;
-  const char* ntpServer = "pool.ntp.org";
-  const long gmtOffset_sec = 3600;
-  const int daylightOffset_sec = 3600;
-  do
-  {
-    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-    delay(100);
-  }
-  while (!getLocalTime(&timeinfo));
-  Serial.println(&timeinfo, "Time: %A, %B %d %Y %H:%M:%S");
 }
 
 void initSensors()
@@ -294,7 +292,19 @@ void webSocketOnMessage(void *arg, uint8_t *data, size_t len)
         if (jsonData.containsKey("cfg"))
         {
           const char* cfgType = jsonData["cfg"];
-          if (strcmp(cfgType, "greenhouse") == 0)
+          if (strcmp(cfgType, "time") == 0)
+          {
+            int t_second = jsonData["second"];
+            int t_minute = jsonData["minute"];
+            int t_hour = jsonData["hour"];
+            int t_day = jsonData["day"];
+            int t_day_of_month = jsonData["day_of_month"];
+            int t_month = jsonData["month"];
+            int t_year = jsonData["year"];
+            RTC.setDS1302Time(t_second, t_minute, t_hour, t_day, t_day_of_month, t_month, t_year);
+            Serial.println("Zaktualizowano czas");
+          }
+          else if (strcmp(cfgType, "greenhouse") == 0)
           {
             gh_auto_mode = jsonData["gh_auto_mode"];
             if (gh_auto_mode)
@@ -518,6 +528,10 @@ void operateGreenHouse()
   }
   else if (gh_manual_mode && gh_manual_state)
   {
+    Serial.print(PID_current_time);
+    Serial.print(";");
+    Serial.println(BMP280_Temperature);
+    PID_current_time += 0.1;
     if (ledcRead(GREENHOUSE_CH) != 1023)
     {
       ledcWrite(GREENHOUSE_CH, 1023);
@@ -533,10 +547,9 @@ void operateLed1()
 {
   if (l1_auto_mode)
   {
-    struct tm timeinfo;
-    getLocalTime(&timeinfo);
-    int cHour = timeinfo.tm_hour;
-    int cMin = timeinfo.tm_min;
+    RTC.updateTime();
+    int cHour = RTC.hours;
+    int cMin = RTC.minutes;
     if (l1_time_off_iS && cHour == l1_time_off_hour && cMin == l1_time_off_min)
     {
       if (digitalRead(LED1_PORT) == LOW)
@@ -577,7 +590,7 @@ void operateLed2()
 {
   if (l2_auto_mode)
   {
-    if (((l2_detect_mode == 1 || l2_detect_mode == 3) && BH1750_Light <= BH1750_LightDusk) || ((l2_detect_mode == 2 || l2_detect_mode == 3) && HCSR501_Motion))
+    if ((l2_detect_mode == 1 && BH1750_Light <= BH1750_LightDusk) || (l2_detect_mode == 2 && HCSR501_Motion) || (l2_detect_mode == 3 && BH1750_Light <= BH1750_LightDusk && HCSR501_Motion))
     {
       if (digitalRead(LED2_PORT) == HIGH)
       {
@@ -616,16 +629,16 @@ void operateWaterPump()
   {
     if (wp_duration_iS && digitalRead(WATERPUMP_PORT) == LOW)
     {
-      struct tm timeinfo;
-      getLocalTime(&timeinfo);
-      if (timeinfo.tm_mday == wp_duration_day)
+      RTC.updateTime();
+      int cDay = RTC.dayofmonth;
+      if (cDay == wp_duration_day)
       {
         wp_duration_sec++;
       }
       else
       {
         wp_duration_sec = 0;
-        wp_duration_day = timeinfo.tm_mday;
+        wp_duration_day = cDay;
         preferences.putUInt("wp_duration_day", wp_duration_day);
       }
       preferences.putUInt("wp_duration_sec", wp_duration_sec);
@@ -755,52 +768,45 @@ String JSONWaterPumpValues()
 
 String JSONInformationValues()
 {
+  RTC.updateTime();
   char sBuffer[20];
   String JSONString;
-  struct tm timeinfo;
   StaticJsonDocument<200> InformationValues;
-  if (getLocalTime(&timeinfo))
-  {
-    strftime(sBuffer, sizeof(sBuffer), "%H:%M:%S", &timeinfo);
-  }
-  else
-  {
-    snprintf(sBuffer, sizeof(sBuffer), "xx:xx:xx");
-  }
+  snprintf(sBuffer, sizeof sBuffer, "%02d:%02d:%02d", RTC.hours, RTC.minutes, RTC.seconds);
   InformationValues["current-time"] = sBuffer;
-  snprintf(sBuffer, sizeof(sBuffer), "%0.2f °C", BMP280_Temperature);
+  snprintf(sBuffer, sizeof sBuffer, "%0.2f °C", BMP280_Temperature);
   InformationValues["current-greenhouse-temp"] = sBuffer;
-  snprintf(sBuffer, sizeof(sBuffer), "%d °C", gh_target_temp);
+  snprintf(sBuffer, sizeof sBuffer, "%d °C", gh_target_temp);
   InformationValues["target-greenhouse-temp"] = sBuffer;
-  snprintf(sBuffer, sizeof(sBuffer), "%0.2f °C", BME280_Temperature);
+  snprintf(sBuffer, sizeof sBuffer, "%0.2f °C", BME280_Temperature);
   InformationValues["outside-temp"] = sBuffer;
-  snprintf(sBuffer, sizeof(sBuffer), "%0.2f %%", BME280_Humidity);
+  snprintf(sBuffer, sizeof sBuffer, "%0.2f %%", BME280_Humidity);
   InformationValues["humidity"] = sBuffer;
   if (digitalRead(LED1_PORT) == LOW)
   {
-    snprintf(sBuffer, sizeof(sBuffer), "Włączona");
+    snprintf(sBuffer, sizeof sBuffer, "Włączona");
   }
   else
   {
-    snprintf(sBuffer, sizeof(sBuffer), "Wyłączona");
+    snprintf(sBuffer, sizeof sBuffer, "Wyłączona");
   }
   InformationValues["lamp-1-state"] = sBuffer;
   if (digitalRead(LED2_PORT) == LOW)
   {
-    snprintf(sBuffer, sizeof(sBuffer), "Włączona");
+    snprintf(sBuffer, sizeof sBuffer, "Włączona");
   }
   else
   {
-    snprintf(sBuffer, sizeof(sBuffer), "Wyłączona");
+    snprintf(sBuffer, sizeof sBuffer, "Wyłączona");
   }
   InformationValues["lamp-2-state"] = sBuffer;
   if (digitalRead(WATERPUMP_PORT) == LOW)
   {
-    snprintf(sBuffer, sizeof(sBuffer), "Włączona");
+    snprintf(sBuffer, sizeof sBuffer, "Włączona");
   }
   else
   {
-    snprintf(sBuffer, sizeof(sBuffer), "Wyłączona");
+    snprintf(sBuffer, sizeof sBuffer, "Wyłączona");
   }
   InformationValues["water-pump-state"] = sBuffer;
   serializeJson(InformationValues, JSONString);

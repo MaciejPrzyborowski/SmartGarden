@@ -1,4 +1,6 @@
 document.addEventListener("DOMContentLoaded", function() {
+	let date = new Date()
+
 	let greenhouseData = {}
 	let ledData = {}
 	let waterPumpData = {}
@@ -8,34 +10,57 @@ document.addEventListener("DOMContentLoaded", function() {
 	let waterPumpResetMessage = "Ustawienia pompy wody zostały zresetowane!"
 	let ErrortMessage = "Nie wybrano żadnych opcji!"
 	let validationChecker = data => data.every(valid => valid === true)
-
+	let actTemp = Math.floor(Math.random * 10) + 20
+	let actTime
+	let dateObj = {
+		"cfg": "time",
+		"second": date.getSeconds(),
+		"minute": date.getMinutes(),
+		"hour": date.getHours(),
+		"day": date.getDay()+1,
+		"day_of_month": date.getDate(),
+		"month": date.getMonth()+1,
+		"year": date.getFullYear()
+	}
+	let jsonDateObj = JSON.stringify(dateObj)
+	let led1_manual_mode
+	let led2_manual_mode
+	let water_pump_manual_mode
+	let timeLedHourOn
+	let timeLedMinOn
+	let timeLedHourOff
+	let timeLedMinOff
+	let timeLed1On
+	let timeLed1Off
+	let detectedValue = false
+	
 	// ---------------- WEB SOCKET --------------------
 
-	let webSocket;
+	let webSocket
 	
 	function initWebSocket() {
-		console.log('Nazwiązywanie połączenia z ESP32...');
-		webSocket = new WebSocket(`ws://${window.location.hostname}/ws`);
-		webSocket.onopen = onOpenWebSocket;
-		webSocket.onclose = onCloseWebSocket;
-		webSocket.onmessage = onMessageWebSocket;
+		console.log('Nazwiązywanie połączenia z ESP32...')
+		webSocket = new WebSocket(`ws://${window.location.hostname}/ws`)
+		webSocket.onopen = onOpenWebSocket
+		webSocket.onclose = onCloseWebSocket
+		webSocket.onmessage = onMessageWebSocket
 	}
 
 	function onOpenWebSocket(event) {
-		console.log('Połączenie poprawnie nawiązane. Odbieranie danych...');
-		webSocket.send("getValues");
+		console.log('Połączenie poprawnie nawiązane. Odbieranie danych...')
+		webSocket.send("getValues")
+		webSocket.send(jsonDateObj)
 	}
 
 	function onCloseWebSocket(event) {
-		console.log('Wystąpił problem podczas nawiązywania połączenia...');
-		setTimeout(initWebSocket, 2000);
+		console.log('Wystąpił problem podczas nawiązywania połączenia...')
+		setTimeout(initWebSocket, 2000)
 	}
 
 	function onMessageWebSocket(event) {
-		console.log(event.data)
-		var obj = JSON.parse(event.data)
-		var key = Object.keys(obj)
-		for (var i = 0; i < key.length; i++){
+		let obj = JSON.parse(event.data)
+		let key = Object.keys(obj)
+		for (let i = 0; i < key.length; i++){
 			if(key[i] == "gh_auto_mode") {
 				if(obj[key[i]] == true) {
 					greenhouse_manual_mode = false
@@ -82,26 +107,187 @@ document.addEventListener("DOMContentLoaded", function() {
 					document.querySelector('[name="gh_temp_off"]').disabled = false
 					displayValues('.greenhouse-auto-form-element', '[data-action="greenhouse-checkbox-toggle"]', '[data-action="greenhouse-input"]', '[data-action="greenhouse-display-value"]')
 				}
+				toogleVisibility(document.querySelector('[name="greenhouse_mode"]:checked').value,
+				document.querySelector('.gh-auto-mode'),
+				document.querySelector('.gh-manual-mode'),
+				null, null, null, null)
+			}
+			else if(key[i] == "l1_auto_mode") {
+				if(obj[key[i]] == true) {
+					led1_manual_mode = false
+					document.querySelector("#l1_auto_mode").checked = true
+					document.querySelector("#l1_manual_mode").checked = false
+					document.querySelector('#l1_time_on_is_set').checked = true
+					document.querySelector('[name="l1_time_on"]').disabled = false
+				} else if(obj[key[i]] == false) {
+					led1_manual_mode = true
+					document.querySelector("#l1_auto_mode").checked = false
+					document.querySelector("#l1_manual_mode").checked = false
+					document.querySelector('#l1_time_on_is_set').checked = false
+					document.querySelector('[name="l1_time_on"]').disabled = true
+				}
+			}
+			else if(key[i] == "l1_time_on_hour") {
+				timeLedHourOn = obj[key[i]] < 9? timeLedHourOn = "0" + obj[key[i]] : timeLedHourOn = obj[key[i]]
+			}
+			else if(key[i] == "l1_time_on_min" ) {
+				timeLedMinOn =  obj[key[i]] < 9? timeLedMinOn = "0" + obj[key[i]] : timeLedMinOn = obj[key[i]]
+				timeLed1On = timeLedHourOn + ':' + timeLedMinOn
+			}
+			else if(key[i] == "l1_manual_state") {
+				if(obj[key[i]] == false && led1_manual_mode == true) {
+					document.querySelector("#l1_manual_on").checked = false
+					document.querySelector("#l1_manual_off").checked = true
+					document.querySelector("#l1_manual_mode").checked = true
+	
+				} else if (obj[key[i]] == false && led1_manual_mode == false) {
+	
+					document.querySelector("#l1_manual_on").checked = false
+					document.querySelector("#l1_manual_off").checked = false
+					document.querySelector("#l1_manual_mode").checked = false
+	
+				} else if (obj[key[i]] == true && led1_manual_mode == true) {
+					document.querySelector("#l1_manual_on").checked = true
+					document.querySelector("#l1_manual_off").checked = false
+					document.querySelector("#l1_manual_mode").checked = true
+				}
+			}
+			else if(key[i] == "l1_time_off_hour") {
+				timeLedHourOff = obj[key[i]] < 9? timeLedHourOff = "0" + obj[key[i]] : timeLedHourOff = obj[key[i]]
+			}
+			else if(key[i] == "l1_time_off_min" ) {
+				timeLedMinOff =  obj[key[i]] < 9? timeLedMinOff = "0" + obj[key[i]] : timeLedMinOff = obj[key[i]]
+				timeLed1Off = timeLedHourOff + ':' + timeLedMinOff
+				document.querySelector('#l1_time_on_is_set').checked ? document.querySelector('[name="l1_time_on"]').value = timeLed1On : null
+				document.querySelector('#l1_time_off_is_set').checked? document.querySelector('[name="l1_time_off"]').value = timeLed1Off : null
+				toogleVisibility(document.querySelector('[name="led1_mode"]:checked').value,
+				document.querySelector('.led-1-auto-mode'),
+				document.querySelector('.led-1-manual-mode'),
+				null, null, null, null)		
+			}
+			else if(key[i] == "l1_time_off_is_set") {
+				if(obj[key[i]] == true) {
+					document.querySelector('#l1_time_off_is_set').checked = true
+					document.querySelector('[name="l1_time_off"]').disabled = false
+				} else {
+					document.querySelector('#l1_time_off_is_set').checked = false
+					document.querySelector('[name="l1_time_off"]').disabled = true
+					document.querySelector('[name="l1_time_off"]').value = null
+				}
+			}
+			else if(key[i] == "l2_auto_mode") {
+				if(obj[key[i]] == true) {
+					led2_manual_mode = false
+					document.querySelector("#l2_auto_mode").checked = true
+					document.querySelector("#l2_manual_mode").checked = false
+				} else if(obj[key[i]] == false) {
+					led2_manual_mode = true
+					document.querySelector("#l2_auto_mode").checked = false
+					document.querySelector("#l2_manual_mode").checked = true
+				}
+			}
+			else if(key[i] == "l2_detect_mode") {
+				switch(obj[key[i]]) {
+					case 1:
+						document.querySelector("#l2_dusk").checked = true
+						break
+					case 2:
+						document.querySelector("#l2_motion").checked = true
+						break
+					case 3:
+						document.querySelector("#l2_dusk_motion").checked = true
+						break
+				}
+				toogleVisibility(document.querySelector('[name="led2_mode"]:checked').value,
+				document.querySelector('.led-2-auto-mode'),
+				document.querySelector('.led-2-manual-mode'),
+				null, null, null, null)		
+			}
+			else if(key[i] == "l2_manual_state") {
+				if(obj[key[i]] == false && led2_manual_mode == true) {
+					document.querySelector("#l2_manual_on").checked = false
+					document.querySelector("#l2_manual_off").checked = true
+					document.querySelector("#l2_manual_mode").checked = true
+	
+				} else if (obj[key[i]] == false && led2_manual_mode == false) {
+	
+					document.querySelector("#l2_manual_on").checked = false
+					document.querySelector("#l2_manual_off").checked = false
+					document.querySelector("#l2_manual_mode").checked = false
+	
+				} else if (obj[key[i]] == true && led2_manual_mode == true) {
+					document.querySelector("#l2_manual_on").checked = true
+					document.querySelector("#l2_manual_off").checked = false
+					document.querySelector("#l2_manual_mode").checked = true
+				}
+			}
+			else if(key[i] == "wp_auto_mode") {
+				if(obj[key[i]] == true) {
+					water_pump_manual_mode = false
+					document.querySelector("#wp_auto_mode").checked = true
+					document.querySelector("#wp_manual_mode").checked = false
+				} else if(obj[key[i]] == false) {
+					water_pump_manual_mode = true
+					document.querySelector("#wp_auto_mode").checked = false
+					document.querySelector("#wp_manual_mode").checked = false
+				}
+			}
+			else if(key[i] == "wp_manual_state") {
+				if(obj[key[i]] == false && water_pump_manual_mode == true) {
+					document.querySelector("#wp_manual_on").checked = false
+					document.querySelector("#wp_manual_off").checked = true
+					document.querySelector("#wp_manual_mode").checked = true
+				} else if (obj[key[i]] == false && water_pump_manual_mode == false) {
+					document.querySelector("#wp_manual_on").checked = false
+					document.querySelector("#wp_manual_off").checked = false
+					document.querySelector("#wp_manual_mode").checked = false
+				} else if (obj[key[i]] == true && water_pump_manual_mode == true) {
+					document.querySelector("#wp_manual_on").checked = true
+					document.querySelector("#wp_manual_off").checked = false
+					document.querySelector("#wp_manual_mode").checked = true
+				}
+			}
+			else if(key[i] == "wp_humidity_below") {
+				if(obj[key[i]] == 0) {
+					document.querySelector('#wp_humidity_below_is_set').checked = false
+				} else {
+					document.querySelector('#wp_humidity_below_is_set').checked = true
+					document.querySelector('[name="wp_humidity_below"]').value = obj[key[i]]
+					document.querySelector('[name="wp_humidity_below"]').disabled = false
+					displayValues('.water-pump-auto-form-element', '[data-action="water-pump-checkbox-toggle"]', '[data-action="water-pump-input"]', '[data-action="water-pump-display-value"]')
+				}
+			}
+			else if(key[i] == "wp_duration_time") {
+				if(obj[key[i]] == 0) {
+					document.querySelector('#wp_duration_time_is_set').checked = false
+					document.querySelector('[name="wp_duration_time"]').disabled = true
+				} else {
+					document.querySelector('#wp_duration_time_is_set').checked = true
+					document.querySelector('[name="wp_duration_time"]').value = obj[key[i]]
+					document.querySelector('[name="wp_duration_time"]').disabled = false
+					displayValues('.water-pump-auto-form-element', '[data-action="water-pump-checkbox-toggle"]', '[data-action="water-pump-input"]', '[data-action="water-pump-display-value"]')
+				}
+				toogleVisibility(document.querySelector('[name="water_pump_mode"]:checked').value,
+				document.querySelector('.water-pump-auto-mode'),
+				document.querySelector('.water-pump-manual-mode'),
+				null, null, null, null)		
 			}
 			else {
+				if(key[i] == "current-greenhouse-temp") {
+					time = new Date()
+					h = time.getHours() <=9 ? h = "0" + time.getHours() : h = time.getHours()
+					m = time.getMinutes() <=9 ? m = "0" + time.getMinutes() : m = time.getMinutes()
+					s = time.getSeconds() <=9 ? s = "0" + time.getSeconds() : s = time.getSeconds()
+					actTime = h + ":" + m + ":" + s
+					actTemp = parseFloat(obj[key[i]])
+					detectedValue = true
+				}
 				document.getElementById(key[i]).innerHTML = obj[key[i]]
 			}
 		}
-		toogleVisibility(document.querySelector('[name="greenhouse_mode"]:checked').value,
-		document.querySelector('.gh-auto-mode'),
-		document.querySelector('.gh-manual-mode'),
-		null, null, null, null)
 	}	
-	
 
-// input radio           gh_auto_mode: false 
-// input radio           gh_manual_mode: false
-// input radio           gh_manual_state: false
-// input range           gh_target_temp: 0
-// input range           gh_temp_off: 0
-// input checkbox        gh_temp_off_is_set: false
-
-	initWebSocket();
+	initWebSocket()
 
 	// ------------------ GLOBAL ----------------------
 
@@ -110,7 +296,6 @@ document.addEventListener("DOMContentLoaded", function() {
 			let checkbox = element.querySelector(toogle)
 			let input = element.querySelector(inputData)
 			input.disabled = true
-			// checkbox.disabled = false //to usunac
 			checkbox.addEventListener("click", function() {
 				input.value = null
 				input.disabled = !this.checked
@@ -149,10 +334,10 @@ document.addEventListener("DOMContentLoaded", function() {
 	function toogleVisibility(radioValue, autoElement ,manualElement, manualRadio, mainCheckbox, autoFormElement, checkboxToogleAction) {
 		switch(radioValue) {
 			case "auto":
-				// autoElement.style.border = "1px solid green"
-				// manualElement.style.border = "1px solid red"
 				autoElement.style.display = "inline-block"
 				manualElement.style.display = "none"
+				// autoElement.style.border = "1px solid green"
+				// manualElement.style.display = "1px solid red"
 				if(manualRadio != null) {
 					document.querySelectorAll(manualRadio).forEach(function(element, index) {
 						element.checked = false
@@ -170,6 +355,8 @@ document.addEventListener("DOMContentLoaded", function() {
 			case "manual":
 				autoElement.style.display = "none"
 				manualElement.style.display = "inline-block"
+				// autoElement.style.border = "1px solid red"
+				// manualElement.style.display = "1px solid green"
 
 				document.querySelectorAll(autoFormElement).forEach(function(element, index) {
 					if(checkboxToogleAction != null) {
@@ -186,9 +373,10 @@ document.addEventListener("DOMContentLoaded", function() {
 
 				break
 			default: 
-			autoElement.style.display = "none"
-			manualElement.style.display = "none"
-
+				autoElement.style.display = "none"
+				manualElement.style.display = "none"
+				// autoElement.style.border = "1px solid blue"
+				// manualElement.style.display = "1px solid blue"
 				document.querySelectorAll(autoFormElement).forEach(function(element, index) {
 					if(checkboxToogleAction != null) {
 						let checkbox = element.querySelector(checkboxToogleAction)
@@ -201,7 +389,6 @@ document.addEventListener("DOMContentLoaded", function() {
 				document.querySelectorAll(manualRadio).forEach(function(element, index) {
 					element.checked = false
 				})
-
 				break
 		}
 	}
@@ -247,9 +434,12 @@ document.addEventListener("DOMContentLoaded", function() {
             document.querySelectorAll('[data-action="greenhouse-input"]').forEach(function(element, index){
                 element.disabled? greenhouseData[element.name] = 0 : greenhouseData[element.name] = parseInt(element.value)
             })
-            // console.log(greenhouseData)
             let jsonObj = JSON.stringify(greenhouseData)
             webSocket.send(jsonObj)
+			chart = drawChart([], [])
+			myChary.destroy()
+			myChary = new Chart(document.querySelector('#myChart'), chart)
+
         } else {
             alert(ErrortMessage)
         }
@@ -267,6 +457,8 @@ document.addEventListener("DOMContentLoaded", function() {
 			element.innerHTML = ""
 		})
 
+		toogleVisibility(null, autoElement, manualElement, '[name="gh_manual"]', null, '.greenhouse-auto-form-element', '[data-action="greenhouse-checkbox-toggle"]')
+		toogleCheckbox('.greenhouse-auto-form-element', '[data-action="greenhouse-checkbox-toggle"]', '[data-action="greenhouse-input"]')
 		document.querySelectorAll('[data-element="greenhouse-form"]').forEach(function(element, index){
 			if(element.name == "gh_manual") {
 				greenhouseData["gh_manual_state"] = false
@@ -278,15 +470,9 @@ document.addEventListener("DOMContentLoaded", function() {
 		document.querySelectorAll('[data-action="greenhouse-input"]').forEach(function(element, index){
 			greenhouseData[element.name] = 0
 		})
-        toogleVisibility("manual", autoElement, manualElement, '[name="gh_manual"]', null, '.greenhouse-auto-form-element', '[data-action="greenhouse-checkbox-toggle"]')
-        toogleCheckbox('.greenhouse-auto-form-element', '[data-action="greenhouse-checkbox-toggle"]', '[data-action="greenhouse-input"]')
-        
-        document.querySelector('#gh_manual_off').checked = true
-        document.querySelector('#gh_manual_mode').checked = true
 
 		alert(greenhouseResetMessage)
 
-		//console.log(greenhouseData)
 		let jsonObj = JSON.stringify(greenhouseData)
 		webSocket.send(jsonObj)
 
@@ -381,7 +567,6 @@ document.addEventListener("DOMContentLoaded", function() {
 				
 				let jsonObj = JSON.stringify(ledData)
 				webSocket.send(jsonObj)
-				//console.log(jsonObj)
 			} else {
 				alert(ledDataError)
 			}		
@@ -423,8 +608,6 @@ document.addEventListener("DOMContentLoaded", function() {
 		})
 
 		alert(ledResetMessage)
-
-		//console.log(ledData)
 		let jsonObj = JSON.stringify(ledData)
 		webSocket.send(jsonObj)
 	})
@@ -465,12 +648,12 @@ document.addEventListener("DOMContentLoaded", function() {
 			document.querySelectorAll('[data-action="water-pump-input"]').forEach(function(element, index){
 				element.disabled? waterPumpData[element.name] = 0 : waterPumpData[element.name] = element.value
 			})
-			//console.log(waterPumpData)
 			let jsonObj = JSON.stringify(waterPumpData)
 			webSocket.send(jsonObj)
 		} else {
 			alert(ErrortMessage)
 		}
+
 	})
 	document.querySelector('[data-action="reset-water-pump-data"]').addEventListener("click", function() {
 		waterPumpData = {"cfg": "water_pump"}
@@ -502,8 +685,119 @@ document.addEventListener("DOMContentLoaded", function() {
 
 		alert(waterPumpResetMessage)
 
-		//console.log(waterPumpData)
 		let jsonObj = JSON.stringify(waterPumpData)
 		webSocket.send(jsonObj)
 	})
+
+	// --------------- TEMPERATURE-CHART ------------------
+
+	let sampleTime = 1
+	let time
+	let h, m, s
+
+	let xArray = []
+	let yArray = []
+	let temp
+
+	let chart = drawChart([], [])
+	let myChary = new Chart(document.querySelector('#myChart'), chart)
+
+	setInterval(function(){
+		if(detectedValue)
+		{
+			addData(myChary, actTime, actTemp)
+			detectedValue = false
+		}
+	}, 250)
+
+	function addData(chart, label, data) {
+		chart.data.labels.push(label)
+		chart.data.datasets.forEach((dataset) => {
+			dataset.data.push(data)
+		})
+		chart.update()
+	}
+
+	function removeData(chart) {
+		chart.data.labels = []
+		chart.data.datasets = []
+		chart.update()
+	}
+
+function drawChart(t, y) {
+	const labels = t
+	const data = {
+		labels: labels,
+		datasets: [{
+			label: 'Temperatura w szklarni o danej godzinie',
+			data: y,
+			borderColor: 'rgb(75, 192, 192)',
+			tension: 0.1
+		}]
+	}
+	
+	const options = {
+		scales: {
+			yAxes: [{
+				scaleLabel: {
+					display: true,
+					labelString: "Temperatura [\xB0C]",
+					fontSize: 24,
+					fontColor: 'rgb(200, 200, 200)'
+				},
+				ticks: {
+					fontSize: 20,
+					fontColor: 'rgb(200, 200, 200)'
+				},
+				gridLines: {
+					color: 'rgb(200, 200, 200, 0.2)',
+					borderColor: 'rgb(200, 200, 200, 0.2)',
+					tickColor: 'rgb(200, 200, 200, 0.2)'
+				  }
+			}],
+			xAxes: [{
+				scaleLabel: {
+					display: true,
+					labelString: "Godzina [-]",
+					fontSize: 24,
+					fontColor: 'rgb(200, 200, 200)'
+				},
+				ticks: {
+					fontSize: 20,
+					fontColor: 'rgb(200, 200, 200)',
+					textStrokeColor: 'rgb(200, 200, 200)',
+					maxTicksLimit: 8,
+					maxRotation: 0
+				},
+				gridLines: {
+					color: 'rgb(200, 200, 200, 0.2)',
+					borderColor: 'rgb(200, 200, 200, 0.2)',
+					tickColor: 'rgb(200, 200, 200, 0.2)'
+				}
+			}]
+		},
+		animation: {
+			duration: 0
+		},
+		legend: {
+			labels: {
+			  fontSize: 22,
+			  fontColor: 'rgb(200, 200, 200)'
+			}
+		  },
+		  responsive: true,
+		//   maintainAspectRatio: false
+	}
+
+	let config = {
+		type: 'line',
+		data: data,
+		options: options,
+	}
+
+	return config
+}
+
+
+
 })
