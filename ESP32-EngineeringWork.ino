@@ -29,11 +29,10 @@ float BME280_Humidity = 0.0;
 Adafruit_BMP280 hBMP280;
 bool BMP280_Status = false;
 float BMP280_Temperature = 0.0;
-float BMP280_Humidity = 0.0;
 
 BH1750 hBH1750;
 bool BH1750_Status = false;
-float BH1750_Light = 0.0;
+unsigned int BH1750_Light = 0;
 const unsigned int BH1750_LightDusk = 20;
 
 const unsigned int HCSR501_PORT = 13;
@@ -52,7 +51,7 @@ unsigned int gh_temp_off = 0;
 
 float PID_current_time = 0.0;
 float PID_previous_error = 0.0;
-float PID_previous_integral = 0.0;
+float integral = 0.0;
 
 const unsigned int LED1_PORT = 32;
 unsigned int LED1_State = HIGH;
@@ -343,7 +342,7 @@ void webSocketOnMessage(void *arg, uint8_t *data, size_t len)
             preferences.putBool("gh_temp_off_iS", gh_temp_off_iS);
             preferences.putUInt("gh_target_temp", gh_target_temp);
             preferences.putUInt("gh_temp_off", gh_temp_off);
-            PID_previous_integral = 0.0;
+            integral = 0.0;
             PID_previous_error = 0.0;
             PID_current_time = 0.0;
           }
@@ -507,14 +506,16 @@ void operateGreenHouse()
     }
     else
     {
-      float PWM_Duty = 1023.0 * PITemperatureControl(gh_target_temp, BMP280_Temperature);
+      float PWM_Duty = 1023.0 * PID_TemperatureControler(gh_target_temp, BMP280_Temperature);
       if (PWM_Duty < 0.0)
       {
         PWM_Duty = 0.0;
+        Serial.print("WINDUPA dolna");
       }
       else if (PWM_Duty > 1023.0)
       {
         PWM_Duty = 1023.0;
+        Serial.print("WINDUPA górna");
       }
       unsigned int iPWM_Duty = round(PWM_Duty);
       ledcWrite(GREENHOUSE_CH, iPWM_Duty);
@@ -528,8 +529,6 @@ void operateGreenHouse()
   }
   else if (gh_manual_mode && gh_manual_state)
   {
-    Serial.print(PID_current_time);
-    Serial.print(";");
     Serial.println(BMP280_Temperature);
     PID_current_time += 0.1;
     if (ledcRead(GREENHOUSE_CH) != 1023)
@@ -675,47 +674,77 @@ void operateWaterPump()
   }
 }
 
-float PITemperatureControl(float setPoint, float measured)
+float PI_TemperatureControler(float setPoint, float measured)
 {
-  float u, P, I, error, integral;
-  float Kp = 0.0886913;
-  float Ki = 0.0002630015;
+  float u_unsat, u_sat, P, I, error;
+  float Kp = 0.460098058608956;
+  float Ki = 0.00603133974695534;
+  float Kb = 10;
   float dt = 0.1;
+  float u_max = 1;
+  float u_min = 0;
 
   error = setPoint - measured;
-  integral = PID_previous_integral + (error + PID_previous_error);
-
-  PID_previous_integral = integral;
-  PID_previous_error = error;
+  integral = integral + (error + PID_previous_error) * (dt / 2.0);
 
   P = Kp * error;
-  I = Ki * integral * (dt / 2.0);
+  I = Ki * integral;
 
-  u = P + I;
-  return u;
+  u_unsat = P + I;
+  if (u_unsat > u_max)
+  {
+    u_sat = u_max;
+    integral = integral - Kb * (u_unsat - u_max);
+  }
+  else if (u_unsat < u_min)
+  {
+    u_sat = u_min;
+    integral = integral - Kb * (u_unsat - u_min);
+  }
+  else
+  {
+    u_sat = u_unsat;
+  }
+  PID_previous_error = error;
+  return u_sat;
 }
 
-float PIDTemperatureControl(float setPoint, float measured)
+float PID_TemperatureControler(float setPoint, float measured)
 {
-  float u, P, I, D, error, integral, derivative;
-  float Kp = 0.0453165;
-  float Ki = 0.000163058;
-  float Kd = 0.6988927;
+  float u_unsat, u_sat, P, I, D, error, derivative;
+  float Kp = 0.362498012950815;
+  float Ki = 0.004496409943;
+  float Kd = 2.4169596946102;
+  float Kb = 3;
   float dt = 0.1;
+  float u_max = 1;
+  float u_min = 0;
 
   error = setPoint - measured;
-  integral = PID_previous_integral + (error + PID_previous_error);
-  derivative = (error - PID_previous_error) / dt;
-
-  PID_previous_integral = integral;
-  PID_previous_error = error;
+  integral = integral + (error + PID_previous_error) * (dt / 2.0);
+  derivative = (error - PID_previous_error)/dt;
 
   P = Kp * error;
-  I = Ki * integral * (dt / 2.0);
+  I = Ki * integral;
   D = Kd * derivative;
 
-  u = P + I + D;
-  return u;
+  u_unsat = P + I + D;
+  if (u_unsat > u_max)
+  {
+    u_sat = u_max;
+    integral = integral - Kb * (u_unsat - u_max);
+  }
+  else if (u_unsat < u_min)
+  {
+    u_sat = u_min;
+    integral = integral - Kb * (u_unsat - u_min);
+  }
+  else
+  {
+    u_sat = u_unsat;
+  }
+  PID_previous_error = error;
+  return u_sat;
 }
 
 String JSONGreenHouseValues()
