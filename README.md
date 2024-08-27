@@ -2,6 +2,9 @@
 Repozytorium zawiera projekt inteligentnego ogrodu, który został zrealizowany z wykorzystaniem mikrokontrolera ESP32 oraz aplikacji internetowej.\
 Projekt umożliwia zdalne, ręczne i automatyczne sterowanie różnymi elementami ogrodu.
 
+## 🔗 Demo
+https://youtu.be/cbIWnLbvTfg
+
 ## 🚀 Cechy
  - ⚙️ Moduł ESP32:
    - 💾 Zapisywanie ustawień w pamięci nieulotnej
