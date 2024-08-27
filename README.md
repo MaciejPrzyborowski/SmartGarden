@@ -23,13 +23,8 @@ Projekt umożliwia zdalne, ręczne i automatyczne sterowanie różnymi elementam
 
 
 ## 📸 Zdjęcia
-<div style="display: flex;">
-<img src="https://github.com/MaciejPrzyborowski/SmartGarden/blob/main/images/konfiguracja_pompy.png" height="165" />
-<img src="https://github.com/MaciejPrzyborowski/SmartGarden/blob/main/images/konfiguracja_szklarni.png" height="165" />
-</div>
-<div style="display: flex;">
-<img src="https://github.com/MaciejPrzyborowski/SmartGarden/blob/main/images/konfiguracja_lamp.png" height="265" />
-<img src="https://github.com/MaciejPrzyborowski/SmartGarden/blob/main/images/sekcja_informacji.png" height="265" />
-</div>
-
+<img src="https://github.com/MaciejPrzyborowski/SmartGarden/blob/main/images/sekcja_informacji.png" />
+<img src="https://github.com/MaciejPrzyborowski/SmartGarden/blob/main/images/konfiguracja_pompy.png" />
+<img src="https://github.com/MaciejPrzyborowski/SmartGarden/blob/main/images/konfiguracja_szklarni.png" />
+<img src="https://github.com/MaciejPrzyborowski/SmartGarden/blob/main/images/konfiguracja_lamp.png" />
 <img src="https://github.com/MaciejPrzyborowski/SmartGarden/blob/main/images/sekcja_wykres.png" />
